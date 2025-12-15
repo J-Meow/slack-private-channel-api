@@ -1,8 +1,13 @@
 import postgres from "npm:postgres"
-
+import { Hono } from "npm:hono"
 const sql = postgres()
 
-const result = await sql`SELECT * FROM slack_channels`
-console.log(result)
+const app = new Hono()
 
-await sql.end()
+app.get("/", async (c) => {
+    const result =
+        await sql`SELECT id, name, notes, name_confidence FROM slack_channels`
+    return c.json(result)
+})
+
+Deno.serve(app.fetch)
