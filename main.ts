@@ -14,4 +14,4 @@ app.get("/channel/:channel", async (c) => {
     }
 })
 
-Deno.serve(app.fetch)
+Deno.serve({ port: 6493 }, app.fetch)
