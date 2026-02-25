@@ -14,4 +14,58 @@ app.get("/channel/:channel", async (c) => {
     }
 })
 
+app.post("/channel/", async (c) => {
+    const json = await c.req.json()
+    if (!json.name) {
+        return c.json({ error: "No name included", success: false }, 400)
+    }
+    const response = await (
+        await fetch(
+            "https://slack.com/api/chat.postMessage?channel=" +
+                Deno.env.get("BOTCHANNEL") +
+                "&blocks=" +
+                encodeURIComponent(
+                    JSON.stringify([
+                        {
+                            type: "section",
+                            text: {
+                                type: "mrkdwn",
+                                text: `#${json.name.replaceAll("<", "[less than]").replaceAll("@", "[at]").replaceAll("`", "[backtick]")} \`${json.name.replaceAll("<", "[less than]").replaceAll("@", "[at]").replaceAll("`", "[backtick]")}\``,
+                            },
+                        },
+                    ]),
+                ),
+            {
+                method: "POST",
+                headers: {
+                    Authorization: "Bearer " + Deno.env.get("BOTTOKEN"),
+                },
+            },
+        )
+    ).json()
+    console.log(response)
+    try {
+        const idIfiedText = response.message.blocks[0].text.text.split(" `")[0]
+        if (idIfiedText.startsWith("<")) {
+            const channelId = idIfiedText.slice(2, -1)
+            const originalChannel =
+                await sql`SELECT id, name, confirmed FROM slack_channels WHERE id=${channelId}`
+            if (originalChannel.length) {
+                await sql`UPDATE slack_channels SET name=${json.name},confirmed=TRUE WHERE id=${channelId}`
+            } else {
+                await sql`INSERT INTO slack_channels("id", "name", "confirmed") VALUES(${channelId}, ${json.name}, TRUE)`
+            }
+            return c.json({ success: true })
+        } else {
+            return c.json({ error: "Channel does not exist", success: false })
+        }
+    } catch (err) {
+        console.error(err)
+        return c.json(
+            { error: "An unknown error occurred", success: false },
+            500,
+        )
+    }
+})
+
 Deno.serve({ port: 6493 }, app.fetch)
