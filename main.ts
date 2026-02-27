@@ -47,7 +47,7 @@ app.post("/channel/", async (c) => {
     try {
         const idIfiedText = response.message.blocks[0].text.text.split(" `")[0]
         if (idIfiedText.startsWith("<")) {
-            const channelId = idIfiedText.slice(2, -1)
+            const channelId = idIfiedText.slice(2, -1).split("|")[0]
             const originalChannel =
                 await sql`SELECT id, name, confirmed FROM slack_channels WHERE id=${channelId}`
             if (originalChannel.length) {
