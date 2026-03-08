@@ -5,12 +5,25 @@ const sql = postgres()
 const app = new Hono()
 
 app.get("/channel/:channel", async (c) => {
-    const result =
-        await sql`SELECT id, name, notes, confirmed FROM slack_channels WHERE id=${c.req.param("channel")}`
+    const isId =
+        c.req.param("channel")[0].toLowerCase() != c.req.param("channel")[0]
+    let result
+    if (isId) {
+        result =
+            await sql`SELECT id, name, notes, confirmed FROM slack_channels WHERE id=${c.req.param("channel")}`
+    } else {
+        result =
+            await sql`SELECT id, name, notes, confirmed FROM slack_channels WHERE name=${c.req.param("channel")}`
+    }
     if (result.length) {
         return c.json({ ...result[0], success: true })
     } else {
-        return c.json({ id: c.req.param("channel"), success: false })
+        return c.json({
+            ...(isId
+                ? { id: c.req.param("channel") }
+                : { name: c.req.param("channel") }),
+            success: false,
+        })
     }
 })
 
@@ -30,7 +43,7 @@ app.post("/channel/", async (c) => {
                             type: "section",
                             text: {
                                 type: "mrkdwn",
-                                text: `#${json.name.replaceAll("<", "[less than]").replaceAll("@", "[at]").replaceAll("`", "[backtick]")} \`${json.name.replaceAll("<", "[less than]").replaceAll("@", "[at]").replaceAll("`", "[backtick]")}\``,
+                                text: `#${json.name.replaceAll("<", "[less than]").replaceAll("@", "[at]").replaceAll("`", "[backtick]").replaceAll(" ", "[space]")} \`${json.name.replaceAll("<", "[less than]").replaceAll("@", "[at]").replaceAll("`", "[backtick]").replaceAll(" ", "[space]")}\``,
                             },
                         },
                     ]),
@@ -55,7 +68,7 @@ app.post("/channel/", async (c) => {
             } else {
                 await sql`INSERT INTO slack_channels("id", "name", "confirmed") VALUES(${channelId}, ${json.name}, TRUE)`
             }
-            return c.json({ success: true })
+            return c.json({ success: true, id: channelId })
         } else {
             return c.json({ error: "Channel does not exist", success: false })
         }
